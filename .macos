@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# .macos
+# $ curl https://raw.githubusercontent.com/yahooshiken/dotfiles/HEAD/.macos | bash
+
+# Close any open System Preferences panes, to prevent them from overriding settings we’re about to change
+osascript -e 'tell application "System Preferences" to quit'
+# Ask for the administrator password upfront
+sudo -v
+# Keep-alive: update existing `sudo` time stamp until `.macos` has finished.
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+# Utility function to print a message in a box
+function echo_heading() {
+  msg=$1
+  length=${#msg}
+  width=$((length + 2))
+  echo "+$(printf '%*s' $width | tr ' ' -)+"
+  echo "| $msg |"
+  echo "+$(printf '%*s' $width | tr ' ' -)+"
+}
+function echo_success() {
+  echo -e "\033[32m[SUCCESS] \033[m$1"
+}
+function echo_error() {
+  echo -e "\033[31m[ERROR] \033[m$1"
+}
+function echo_warning() {
+  echo -e "\033[33m[WARNING] \033[m$1"
+}
+function echo_info() {
+  echo -e "\033[36m[INFO] \033[m$1"
+}
+
+echo_info "Hello $(whoami)! Let's get started!"
+
+echo_heading "Install or update Homebrew"
+
+if [ -n $(command -v brew) ]; then
+  echo_info "Homebrew is already installed. Checking for updates..."
+  brew update
+  brew upgrade
+else
+  echo_info "Homebrew is not installed. Installing Homebrew..."
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+
+echo_heading "Installing Homebrew packages"
+brew install ffmpeg fish git git-delta ghq peco ripgrep tree wget unzip gzip xz
+
+echo_heading "Installing development tools"
+curl -fsSL https://moonrepo.dev/install/proto.sh | bash
+proto install node
+proto install npm
+proto install bun
+
+echo_success "node --version: $(node --version)"
+echo_success "npm --version: $(npm --version)"
+echo_success "bun --version: $(bun --version)"
+
+echo_heading "Installing apps with brew cask"
+brew install --cask arc alfred autodesk-fusion docker figma google-cloud-sdk google-japanese-ime \
+  iterm2 notion obsidian pdf-expert rapidapi raycast slack skype splashtop-business \
+  tableplus ultimaker-cura visual-studio-code zoom
+
+echo_heading "Generating a new SSH key for GitHub"
+ssh-keygen -t ed25519 -C "hoshimure.47@gmail.com" -f ~/.ssh/id_ed25519
+eval "$(ssh-agent -s)"
+ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+echo run 'pbcopy < ~/.ssh/id_ed25519.pub' to copy the public key to the clipboard.
+
+echo_heading "Cloning dotfiles"
+ghq get git@github.com:yahooshiken/dotfiles.git
+ln -s "$(ghq root)/github.com/yahooshiken/dotfiles/.gitconfig" ~/.gitconfig
+ln -s "$(ghq root)/github.com/yahooshiken/dotfiles/.gitignore_global" ~/.gitignore_global
+ln -s "$(ghq root)/github.com/yahooshiken/dotfiles/config.fish" ~/.config/fish/config.fish
+
+echo_heading "Setting up macOS defaults"
